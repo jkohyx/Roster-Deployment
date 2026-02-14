@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Car Zone Roster</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-2: #f0f1f4;
+    --surface-3: #e8eaef;
+    --border: #dde0e7;
+    --border-light: #c8ccd6;
+    --text: #1a1d2b;
+    --text-muted: #5c6178;
+    --text-dim: #8b90a5;
+    --accent: #4361ee;
+    --accent-light: rgba(67,97,238,0.08);
+    --accent-strong: #3651d4;
+    --arrival: #059669;
+    --departure: #d97706;
+    --arrival-border: rgba(5,150,105,0.2);
+    --danger: #dc2626;
+    --zone-line: #b0b6c8;
+    --hour-line: #c8ccd6;
+    --motor-bg: rgba(124,58,237,0.05);
+    --motor-border: rgba(124,58,237,0.25);
+    --motor-active: #7c3aed;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.07);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 10% 0%, rgba(67,97,238,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 90% 100%, rgba(124,58,237,0.03) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 100%; padding: 16px; }
+
+  /* ── Header ── */
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), #7c3aed); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: white; flex-shrink: 0; box-shadow: 0 2px 8px rgba(67,97,238,0.3); }
+  .header-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title span { color: var(--text-dim); font-weight: 400; font-size: 14px; margin-left: 8px; }
+
+  /* ── Mode Toggle ── */
+  .mode-toggle { display: flex; background: var(--surface-2); border-radius: 10px; padding: 3px; border: 1px solid var(--border); }
+  .mode-btn { position: relative; z-index: 2; padding: 8px 20px; border: none; background: none; color: var(--text-dim); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.25s; letter-spacing: 0.02em; }
+  .mode-btn.active { color: white; box-shadow: var(--shadow-md); }
+  .mode-btn.active[data-mode="arrival"] { background: var(--arrival); }
+  .mode-btn.active[data-mode="departure"] { background: var(--departure); }
+  .mode-indicator { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .mode-btn[data-mode="arrival"] .mode-indicator { background: var(--arrival); }
+  .mode-btn[data-mode="departure"] .mode-indicator { background: var(--departure); }
+  .mode-btn.active .mode-indicator { background: rgba(255,255,255,0.7); }
+
+  /* ── Controls ── */
+  .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .shift-toggle { display: flex; background: var(--surface); border-radius: 8px; padding: 2px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  .shift-btn { padding: 6px 14px; border: none; background: none; color: var(--text-dim); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+  .shift-btn.active { background: var(--surface-3); color: var(--text); box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); }
+  .shift-btn .shift-icon { margin-right: 4px; }
+
+  .color-picker { display: flex; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; box-shadow: var(--shadow); }
+  .color-picker-label { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.04em; margin-right: 2px; }
+  .color-swatch { width: 22px; height: 22px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: var(--text); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--text-muted); transform: scale(1.1); }
+
+  .controls-right { display: flex; align-items: center; gap: 8px; }
+  .btn { padding: 7px 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border-radius: var(--radius-sm); transition: all 0.2s; display: flex; align-items: center; gap: 5px; box-shadow: var(--shadow); }
+  .btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-light); }
+  .btn-danger { color: var(--danger); border-color: rgba(220,38,38,0.2); }
+  .btn-danger:hover { background: rgba(220,38,38,0.06); border-color: rgba(220,38,38,0.35); color: #b91c1c; }
+  .btn-copy.copied { background: rgba(5,150,105,0.08); border-color: var(--arrival-border); color: var(--arrival); }
+
+  /* ── Zoom Controls ── */
+  .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+    box-shadow: var(--shadow);
+  }
+
+  .zoom-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .zoom-btn:hover { background: var(--surface-3); color: var(--text); }
+  .zoom-btn:active { transform: scale(0.92); }
+
+  .zoom-level {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    min-width: 38px;
+    text-align: center;
+    user-select: none;
+  }
+
+  /* ── Undo Button ── */
+  .btn-undo {
+    color: var(--accent);
+    border-color: rgba(67,97,238,0.2);
+  }
+
+  .btn-undo:hover {
+    background: rgba(67,97,238,0.06);
+    border-color: rgba(67,97,238,0.35);
+    color: var(--accent-strong);
+  }
+
+  .btn-undo:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* ── Table zoom scaling ── */
+  #table-container {
+    user-select: none;
+    -webkit-user-select: none;
+    display: inline-block;
+    min-width: 100%;
+    transform-origin: top left;
+    transition: transform 0.2s ease;
+  }
+
+  /* ── Auto-Assign Panel ── */
+  .auto-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .auto-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .auto-panel-header h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .auto-panel-header h3 .badge {
+    font-size: 10px;
+    font-weight: 600;
+    background: var(--accent);
+    color: white;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .auto-panel-toggle {
+    font-size: 18px;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+  }
+
+  .auto-panel.collapsed .auto-panel-body { display: none; }
+  .auto-panel.collapsed .auto-panel-toggle { transform: rotate(-90deg); }
+
+  .auto-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .auto-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .auto-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .auto-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .auto-field input, .auto-field select {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100px;
+  }
+
+  .auto-field input:focus, .auto-field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(67,97,238,0.1);
+  }
+
+  .auto-field input[type="number"] { width: 70px; }
+
+  .btn-assign {
+    padding: 8px 18px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(67,97,238,0.25);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .btn-assign:hover { background: var(--accent-strong); box-shadow: 0 3px 10px rgba(67,97,238,0.35); }
+  .btn-assign:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .auto-result {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    display: none;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .auto-result.visible { display: block; }
+
+  .auto-result .suggestion-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+
+  .auto-result .suggestion-row .row-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    min-width: 50px;
+    text-align: center;
+  }
+
+  .auto-result .suggestion-row .zone-badge {
+    display: inline-block;
+    background: var(--surface-3);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .auto-result .no-result {
+    color: var(--danger);
+    font-weight: 600;
+  }
+
+  .auto-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn-apply {
+    padding: 6px 14px;
+    background: var(--arrival);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: none;
+  }
+
+  .btn-apply:hover { filter: brightness(1.1); }
+  .btn-apply.visible { display: inline-flex; }
+
+  /* ── Table ── */
+  .table-wrapper { width: 100%; overflow-x: auto; overflow-y: visible; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); margin-bottom: 16px; box-shadow: var(--shadow-md); position: relative; }
+  .table-wrapper::-webkit-scrollbar { height: 8px; }
+  .table-wrapper::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 0 0 var(--radius) var(--radius); }
+  .table-wrapper::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+  .table-wrapper::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+  table { border-collapse: collapse; width: max-content; }
+  th, td { min-width: 32px; width: 32px; height: 28px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; border: none; transition: background-color 0.08s; }
+
+  .row-header { position: sticky; left: 0; z-index: 4; background: var(--surface-2); color: var(--text-dim); font-size: 10px; font-weight: 600; min-width: 36px; width: 36px; border-right: 1px solid var(--border); }
+
+  td.cell { cursor: pointer; color: transparent; position: relative; touch-action: none; background: var(--surface); }
+  body:not(.is-dragging) td.cell { touch-action: auto; }
+  td.cell::after { content: ''; position: absolute; inset: 2px; border-radius: 4px; background: var(--surface-2); transition: background-color 0.1s, box-shadow 0.1s; }
+  td.cell:hover::after { background: var(--surface-3); }
+  td.cell.active { color: transparent; }
+  td.cell.active::after { background: var(--cell-color, #4361ee); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+
+  /* Highlight suggested rows */
+  td.cell.suggested::after { background: rgba(67,97,238,0.18); border: 1.5px dashed var(--accent); }
+  td.cell.active.suggested::after { background: var(--cell-color, #4361ee); border: none; }
+
+  td.hour-sep, th.hour-sep { border-right: 1px solid var(--hour-line); }
+  td.half-sep, th.half-sep { border-right: 1px dashed var(--border); }
+  tr.zone-last td, tr.zone-last th { border-bottom: 2px solid var(--zone-line); }
+
+  tr.subtotal-row td, tr.subtotal-row th { background: var(--surface-2); color: var(--accent); font-weight: 600; font-size: 11px; height: 32px; border-top: 1px solid var(--border); border-bottom: 2px solid var(--zone-line); touch-action: auto; }
+  tr.subtotal-row th { background: var(--surface-3); color: var(--text-muted); position: sticky; left: 0; z-index: 4; }
+
+  tr.grandtotal-row td, tr.grandtotal-row th { background: rgba(67,97,238,0.05); color: var(--accent-strong); font-weight: 700; font-size: 12px; height: 32px; border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent); touch-action: auto; }
+  tr.grandtotal-row th { background: rgba(67,97,238,0.08); color: var(--accent); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  tr.motor-row td, tr.motor-row th { background: var(--motor-bg); border-top: 2px solid var(--motor-border); border-bottom: 2px solid var(--motor-border); touch-action: auto; }
+  tr.motor-row th { background: rgba(124,58,237,0.08); color: var(--motor-active); font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+  tr.motor-row td.cell { touch-action: none; }
+  body:not(.is-dragging) tr.motor-row td.cell { touch-action: auto; }
+
+  /* Zone col header */
+  tr.zone-col-header td, tr.zone-col-header th { background: var(--surface-2); color: var(--text-dim); font-size: 7px; font-weight: 600; letter-spacing: 0.02em; padding: 4px 1px; height: 22px; border-bottom: 1px solid var(--border); border-top: 2px solid var(--zone-line); touch-action: auto; position: sticky; top: 0; z-index: 3; }
+  tr.zone-col-header:first-child td, tr.zone-col-header:first-child th { border-top: none; }
+  tr.zone-col-header th { background: var(--surface-3); color: var(--text-muted); font-size: 9px; font-weight: 700; position: sticky; left: 0; z-index: 5; }
+
+  /* Summary */
+  .summary-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-md); }
+  .summary-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .summary-header h3 { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+  .summary-content { padding: 12px 16px; max-height: 350px; overflow: auto; }
+  .summary-content::-webkit-scrollbar { width: 6px; }
+  .summary-content::-webkit-scrollbar-track { background: transparent; }
+  .summary-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  #summary-text { white-space: pre; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+
+  @media (max-width: 600px) {
+    .app { padding: 10px; }
+    .header { flex-direction: column; align-items: flex-start; }
+    .controls { flex-direction: column; align-items: stretch; }
+    .controls-left, .controls-right { justify-content: space-between; }
+    .auto-row { flex-direction: column; align-items: stretch; }
+    .auto-field input, .auto-field select { width: 100%; }
+  }
+
+  @keyframes cellPulse { 0% { transform: scale(0.6); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  td.cell.just-activated::after { animation: cellPulse 0.15s ease-out; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">R</div>
+      <div class="header-title">Car Zone<span>Roster</span></div>
+    </div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" data-mode="arrival"><span class="mode-indicator"></span>Arrival</button>
+      <button class="mode-btn" data-mode="departure"><span class="mode-indicator"></span>Departure</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="controls-left">
+      <div class="shift-toggle">
+        <button class="shift-btn active" data-shift="morning"><span class="shift-icon">☀️</span> Morning</button>
+        <button class="shift-btn" data-shift="night"><span class="shift-icon">🌙</span> Night</button>
+      </div>
+      <div class="color-picker">
+        <span class="color-picker-label">Paint:</span>
+        <div class="color-swatch selected" data-color="#4361ee" style="background:#4361ee;" title="Blue"></div>
+        <div class="color-swatch" data-color="#059669" style="background:#059669;" title="Green"></div>
+        <div class="color-swatch" data-color="#dc2626" style="background:#dc2626;" title="Red"></div>
+        <div class="color-swatch" data-color="#d97706" style="background:#d97706;" title="Orange"></div>
+        <div class="color-swatch" data-color="#7c3aed" style="background:#7c3aed;" title="Purple"></div>
+        <div class="color-swatch" data-color="#0891b2" style="background:#0891b2;" title="Teal"></div>
+        <div class="color-swatch" data-color="#1a1d2b" style="background:#1a1d2b;" title="Black"></div>
+      </div>
+    </div>
+    <div class="controls-right">
+      <div class="zoom-controls">
+        <button class="zoom-btn" id="zoom-out" title="Zoom out">−</button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+        <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
+        <button class="zoom-btn" id="zoom-fit" title="Fit all zones" style="font-size:11px;">FIT</button>
+      </div>
+      <button class="btn btn-undo" id="undo-button" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.64-11.36L1 10"/></svg>
+        Undo
+      </button>
+      <button class="btn btn-copy" id="copy-button">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+        <span id="copy-text">Copy</span>
+      </button>
+      <button class="btn btn-danger" id="clear-button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <!-- Auto-Assign Panel -->
+  <div class="auto-panel" id="auto-panel">
+    <div class="auto-panel-header" id="auto-panel-header">
+      <h3>🤖 Auto-Assign <span class="badge">SMART</span></h3>
+      <span class="auto-panel-toggle">▼</span>
+    </div>
+    <div class="auto-panel-body">
+      <div class="auto-row">
+        <div class="auto-field">
+          <label>Officers</label>
+          <input type="number" id="auto-count" min="1" max="40" value="1" placeholder="1">
+        </div>
+        <div class="auto-field">
+          <label>From</label>
+          <select id="auto-from"></select>
+        </div>
+        <div class="auto-field">
+          <label>To</label>
+          <select id="auto-to"></select>
+        </div>
+        <button class="btn-assign" id="auto-suggest-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          Suggest
+        </button>
+        <button class="btn-apply" id="auto-apply-btn">
+          ✓ Apply to Grid
+        </button>
+      </div>
+      <div class="auto-result" id="auto-result"></div>
+    </div>
+  </div>
+
+  <!-- Roster Auto-Populate Panel -->
+  <div class="auto-panel" id="roster-panel">
+    <div class="auto-panel-header" id="roster-panel-header">
+      <h3>📋 Roster Populate <span class="badge" style="background:var(--departure);">DEPARTURE</span> <span class="badge" style="background:var(--text-dim);">MORNING</span></h3>
+      <span class="auto-panel-toggle">▼</span>
+    </div>
+    <div class="auto-panel-body">
+      <div class="auto-row">
+        <div class="auto-field">
+          <label>No. of Officers</label>
+          <input type="number" id="roster-count" min="1" max="36" value="4" placeholder="4">
+        </div>
+        <button class="btn-assign" id="roster-populate-btn" style="background:var(--departure);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Populate Grid
+        </button>
+      </div>
+      <div class="auto-result" id="roster-result"></div>
+    </div>
+  </div>
+
+  <div class="table-wrapper" id="table-wrapper">
+    <div id="table-container"></div>
+  </div>
+
+  <div class="summary-panel">
+    <div class="summary-header">
+      <h3>📋 Summary Output</h3>
+      <button class="btn btn-copy" id="copy-button-2">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25z"/><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+        <span>Copy</span>
+      </button>
+    </div>
+    <div class="summary-content">
+      <pre id="summary-text"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+const cols = 48;
+let mode = "arrival";
+let shift = "morning";
+let paintColor = "#4361ee";
+
+const zoneSizes = {
+  arrival: [10, 10, 10, 10],
+  departure: [8, 10, 10, 8]
+};
+
+const dataStore = { arrival: null, departure: null };
+const container = document.getElementById("table-container");
+const summaryText = document.getElementById("summary-text");
+
+let dragging = false, startRow = null, startCol = null, dragDirection = null, paintedCells = new Set(), paintMode = null;
+let lastSuggestions = null; // store last suggestion for apply
+
+// ── LocalStorage ──
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem('counterData', JSON.stringify(dataStore));
+    localStorage.setItem('currentMode', mode);
+    localStorage.setItem('currentShift', shift);
+    localStorage.setItem('paintColor', paintColor);
+  } catch (e) {}
+}
+
+function loadFromLocalStorage() {
+  try {
+    const d = localStorage.getItem('counterData');
+    const m = localStorage.getItem('currentMode');
+    const s = localStorage.getItem('currentShift');
+    const c = localStorage.getItem('paintColor');
+    if (d) { const p = JSON.parse(d); dataStore.arrival = p.arrival; dataStore.departure = p.departure; }
+    if (m) { mode = m; document.querySelectorAll(".mode-btn").forEach(t => t.classList.toggle("active", t.dataset.mode === mode)); }
+    if (s) { shift = s; document.querySelectorAll(".shift-btn").forEach(t => t.classList.toggle("active", t.dataset.shift === shift)); }
+    if (c) { paintColor = c; document.querySelectorAll(".color-swatch").forEach(sw => sw.classList.toggle("selected", sw.dataset.color === paintColor)); }
+  } catch (e) {}
+}
+
+function generateColHeaders() {
+  const headers = [];
+  const startHour = shift === "morning" ? 10 : 22;
+  let hour = startHour, minute = 0;
+  for (let i = 0; i < cols; i++) {
+    headers.push(`${hour.toString().padStart(2,'0')}${minute.toString().padStart(2,'0')}`);
+    minute += 15;
+    if (minute >= 60) { minute = 0; hour++; if (hour >= 24) hour = 0; }
+  }
+  return headers;
+}
+
+let colHeaders = generateColHeaders();
+
+function initializeData(modeName) {
+  const zones = zoneSizes[modeName];
+  const rows = zones.reduce((s, v) => s + v, 0);
+  const df = Array.from({ length: rows }, () => Array(cols).fill(0));
+  df.push(Array(cols).fill(0));
+  return df;
+}
+
+function getCurrentData() {
+  if (!dataStore[mode]) dataStore[mode] = initializeData(mode);
+  return dataStore[mode];
+}
+
+// ── Time selects for auto-assign ──
+function populateTimeSelects() {
+  const fromSel = document.getElementById("auto-from");
+  const toSel = document.getElementById("auto-to");
+  fromSel.innerHTML = '';
+  toSel.innerHTML = '';
+  colHeaders.forEach((h, i) => {
+    const display = h.slice(0,2) + ':' + h.slice(2);
+    fromSel.innerHTML += `<option value="${i}">${display}</option>`;
+    toSel.innerHTML += `<option value="${i}">${display}</option>`;
+  });
+  // Default: from=first, to=last
+  fromSel.value = "0";
+  toSel.value = String(cols - 1);
+}
+
+// ── Auto-Assign Algorithm ──
+// Given N officers and a column range [fromCol, toCol]:
+// 1. For each zone, find rows where ALL columns in range are unoccupied
+// 2. Within each zone, sort available rows descending (higher row numbers first)
+// 3. Distribute officers across zones as evenly as possible (round-robin, least-loaded first)
+function computeSuggestions(count, fromCol, toCol) {
+  const df = getCurrentData();
+  const zones = zoneSizes[mode];
+  const motorRowIndex = df.length - 1;
+
+  // Build zone info
+  let zoneInfo = [];
+  let rowOffset = 0;
+  for (let z = 0; z < zones.length; z++) {
+    const size = zones[z];
+    const availableRows = [];
+    // Check each row in zone (iterate from highest to lowest within zone)
+    for (let r = rowOffset + size - 1; r >= rowOffset; r--) {
+      let free = true;
+      for (let c = fromCol; c <= toCol; c++) {
+        if (df[r][c] !== 0) { free = false; break; }
+      }
+      if (free) availableRows.push(r);
+    }
+    // Count currently occupied rows in this zone for the given time range
+    let occupied = 0;
+    for (let r = rowOffset; r < rowOffset + size; r++) {
+      for (let c = fromCol; c <= toCol; c++) {
+        if (df[r][c] !== 0) { occupied++; break; }
+      }
+    }
+    zoneInfo.push({ zone: z, availableRows, occupied, assigned: [] });
+    rowOffset += size;
+  }
+
+  // Distribute officers: round-robin picking the zone with least (occupied + assigned)
+  let remaining = count;
+  while (remaining > 0) {
+    // Sort zones by (occupied + assigned count) ascending, then by zone index for stability
+    zoneInfo.sort((a, b) => {
+      const loadA = a.occupied + a.assigned.length;
+      const loadB = b.occupied + b.assigned.length;
+      if (loadA !== loadB) return loadA - loadB;
+      return a.zone - b.zone;
+    });
+
+    let placed = false;
+    for (let zi of zoneInfo) {
+      if (remaining <= 0) break;
+      if (zi.assigned.length < zi.availableRows.length) {
+        zi.assigned.push(zi.availableRows[zi.assigned.length]);
+        remaining--;
+        placed = true;
+        break; // re-sort after each placement for true balancing
+      }
+    }
+    if (!placed) break; // no more space
+  }
+
+  // Re-sort by zone index
+  zoneInfo.sort((a, b) => a.zone - b.zone);
+
+  const results = [];
+  const unplaced = remaining;
+  for (let zi of zoneInfo) {
+    for (let row of zi.assigned) {
+      results.push({ row, zone: zi.zone });
+    }
+  }
+
+  // Sort results by zone, then row descending for display
+  results.sort((a, b) => a.zone !== b.zone ? a.zone - b.zone : b.row - a.row);
+
+  return { results, unplaced, fromCol, toCol };
+}
+
+function showSuggestions(suggestion) {
+  const resultDiv = document.getElementById("auto-result");
+  const applyBtn = document.getElementById("auto-apply-btn");
+  lastSuggestions = suggestion;
+
+  // Clear previous highlights
+  container.querySelectorAll("td.cell.suggested").forEach(td => td.classList.remove("suggested"));
+
+  if (suggestion.results.length === 0 && suggestion.unplaced > 0) {
+    resultDiv.innerHTML = `<div class="no-result">⚠ No available rows found for the selected time range. All counters are occupied.</div>`;
+    resultDiv.classList.add("visible");
+    applyBtn.classList.remove("visible");
+    return;
+  }
+
+  let html = '';
+  if (suggestion.unplaced > 0) {
+    html += `<div class="no-result" style="margin-bottom:6px;">⚠ Only ${suggestion.results.length} rows available. ${suggestion.unplaced} officer(s) could not be placed.</div>`;
+  }
+
+  for (const s of suggestion.results) {
+    html += `<div class="suggestion-row">
+      <span class="row-badge">Row ${s.row + 1}</span>
+      <span class="zone-badge">Zone ${s.zone + 1}</span>
+    </div>`;
+  }
+
+  // Zone summary
+  const zoneCounts = {};
+  suggestion.results.forEach(s => { zoneCounts[s.zone] = (zoneCounts[s.zone] || 0) + 1; });
+  const summaryParts = Object.entries(zoneCounts).map(([z, c]) => `Z${Number(z)+1}: ${c}`).join(' · ');
+  html += `<div style="margin-top:6px;font-size:10px;color:var(--text-dim);font-weight:600;">Distribution: ${summaryParts}</div>`;
+
+  resultDiv.innerHTML = html;
+  resultDiv.classList.add("visible");
+  applyBtn.classList.add("visible");
+
+  // Highlight suggested cells in the grid
+  for (const s of suggestion.results) {
+    for (let c = suggestion.fromCol; c <= suggestion.toCol; c++) {
+      const td = container.querySelector(`td[data-row="${s.row}"][data-col="${c}"]`);
+      if (td) td.classList.add("suggested");
+    }
+  }
+}
+
+function applySuggestions() {
+  if (!lastSuggestions || lastSuggestions.results.length === 0) return;
+  pushUndo();
+  const df = getCurrentData();
+
+  for (const s of lastSuggestions.results) {
+    for (let c = lastSuggestions.fromCol; c <= lastSuggestions.toCol; c++) {
+      df[s.row][c] = paintColor;
+    }
+  }
+
+  saveToLocalStorage();
+  lastSuggestions = null;
+  document.getElementById("auto-result").classList.remove("visible");
+  document.getElementById("auto-apply-btn").classList.remove("visible");
+  renderTable();
+}
+
+// ── Drag Handling ──
+function handleDrag(currentRow, currentCol) {
+  if (dragDirection === null) {
+    if (currentRow !== startRow && currentCol === startCol) dragDirection = 'vertical';
+    else if (currentCol !== startCol && currentRow === startRow) dragDirection = 'horizontal';
+    else if (currentRow !== startRow || currentCol !== startCol) return;
+  }
+  let targetRow, targetCol;
+  if (dragDirection === 'horizontal') { targetRow = startRow; targetCol = currentCol; }
+  else if (dragDirection === 'vertical') { targetRow = currentRow; targetCol = startCol; }
+  else return;
+  const key = `${targetRow}-${targetCol}`;
+  if (!paintedCells.has(key)) {
+    const targetCell = container.querySelector(`td[data-row="${targetRow}"][data-col="${targetCol}"]`);
+    if (targetCell) { paintedCells.add(key); toggleCell(targetCell); }
+  }
+}
+
+function sepClass(colIndex) {
+  if ((colIndex + 1) % 4 === 0) return 'hour-sep';
+  if ((colIndex + 1) % 2 === 0) return 'half-sep';
+  return '';
+}
+
+function renderTable() {
+  const df = getCurrentData();
+  const zones = zoneSizes[mode];
+  const motorRowIndex = df.length - 1;
+
+  let html = "<table><tbody>";
+  let currentRow = 0, zoneIndex = 0;
+
+  for (let zoneSize of zones) {
+    const zoneStart = currentRow;
+    const zoneEnd = currentRow + zoneSize - 1;
+
+    // Time header row
+    html += `<tr class="zone-col-header"><th class="row-header" style="background:var(--surface-3);font-size:9px;font-weight:700;">Z${zoneIndex + 1}</th>`;
+    colHeaders.forEach((header, i) => {
+      const cls = sepClass(i);
+      html += `<td class="${cls}">${header.slice(0,2)}:${header.slice(2)}</td>`;
+    });
+    html += "</tr>";
+
+    for (let i = 0; i < zoneSize; i++) {
+      const rowIndex = currentRow;
+      const isLast = i === zoneSize - 1;
+      html += `<tr class="${isLast ? 'zone-last' : ''}">`;
+      html += `<th class="row-header">${rowIndex + 1}</th>`;
+      df[rowIndex].forEach((val, ci) => {
+        const sepCls = sepClass(ci);
+        const isActive = val !== 0;
+        const colorStyle = isActive ? `--cell-color:${typeof val === 'string' ? val : paintColor};` : '';
+        html += `<td class="cell ${isActive ? 'active' : ''} ${sepCls}" data-row="${rowIndex}" data-col="${ci}" style="${colorStyle}"></td>`;
+      });
+      html += "</tr>";
+      currentRow++;
+    }
+
+    // Subtotal
+    html += `<tr class="subtotal-row"><th class="row-header" style="background:var(--surface-3)">Z${zoneIndex + 1}</th>`;
+    for (let c = 0; c < cols; c++) {
+      html += `<td class="subtotal ${sepClass(c)}" data-sub-start="${zoneStart}" data-sub-end="${zoneEnd}" data-col="${c}">0</td>`;
+    }
+    html += "</tr>";
+    zoneIndex++;
+  }
+
+  // Grand total
+  html += `<tr class="grandtotal-row"><th class="row-header" style="background:rgba(67,97,238,0.08);color:var(--accent)">CAR</th>`;
+  for (let c = 0; c < cols; c++) html += `<td class="grandtotal ${sepClass(c)}" data-col="${c}">0</td>`;
+  html += "</tr>";
+
+  // Motor
+  html += `<tr class="motor-row"><th class="row-header" style="background:rgba(124,58,237,0.08);color:var(--motor-active)">MOTO</th>`;
+  for (let c = 0; c < cols; c++) {
+    const mv = df[motorRowIndex][c];
+    const isA = mv !== 0;
+    const cs = isA ? `--cell-color:${typeof mv === 'string' ? mv : '#7c3aed'};` : '';
+    html += `<td class="cell motor-cell ${isA?'active':''} ${sepClass(c)}" data-row="${motorRowIndex}" data-col="${c}" style="${cs}"></td>`;
+  }
+  html += "</tr></tbody></table>";
+  container.innerHTML = html;
+
+  // Events
+  container.querySelectorAll("td.cell").forEach(td => {
+    td.addEventListener("mousedown", (e) => {
+      dragging = true; document.body.classList.add('is-dragging');
+      startRow = Number(td.dataset.row); startCol = Number(td.dataset.col);
+      dragDirection = null; paintedCells.clear();
+      const df = getCurrentData();
+      paintMode = df[startRow][startCol] !== 0 ? 'erase' : 'paint';
+      paintedCells.add(`${startRow}-${startCol}`); toggleCell(td, true); e.preventDefault();
+    });
+    td.addEventListener("mouseover", () => { if (dragging) handleDrag(Number(td.dataset.row), Number(td.dataset.col)); });
+    td.addEventListener("touchstart", (e) => {
+      dragging = true; document.body.classList.add('is-dragging');
+      startRow = Number(td.dataset.row); startCol = Number(td.dataset.col);
+      dragDirection = null; paintedCells.clear();
+      const df = getCurrentData();
+      paintMode = df[startRow][startCol] !== 0 ? 'erase' : 'paint';
+      paintedCells.add(`${startRow}-${startCol}`); toggleCell(td, true); e.preventDefault();
+    });
+    td.addEventListener("touchmove", (e) => {
+      if (!dragging) return; e.preventDefault();
+      const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+      if (el && el.dataset.row !== undefined) handleDrag(Number(el.dataset.row), Number(el.dataset.col));
+    });
+    td.addEventListener("touchend", (e) => { dragging = false; document.body.classList.remove('is-dragging'); startRow = startCol = dragDirection = paintMode = null; paintedCells.clear(); e.preventDefault(); });
+    td.addEventListener("touchcancel", () => { dragging = false; document.body.classList.remove('is-dragging'); startRow = startCol = dragDirection = paintMode = null; paintedCells.clear(); });
+  });
+
+  document.addEventListener("mouseup", () => { dragging = false; document.body.classList.remove('is-dragging'); startRow = startCol = dragDirection = paintMode = null; paintedCells.clear(); });
+
+  updateAllTotals();
+  if (zoomLevel !== 100) applyZoom();
+}
+
+function toggleCell(td, isFirstInDrag = false) {
+  if (isFirstInDrag) pushUndo();
+  const df = getCurrentData();
+  const r = Number(td.dataset.row), c = Number(td.dataset.col);
+  const isMotor = td.classList.contains('motor-cell');
+
+  if (paintMode === 'erase' || (paintMode === null && df[r][c] !== 0)) {
+    df[r][c] = 0; td.classList.remove('active', 'just-activated'); td.style.removeProperty('--cell-color');
+  } else {
+    const color = isMotor ? '#7c3aed' : paintColor;
+    df[r][c] = color; td.style.setProperty('--cell-color', color);
+    td.classList.add('active', 'just-activated');
+    setTimeout(() => td.classList.remove('just-activated'), 150);
+  }
+  updateAllTotals();
+  saveToLocalStorage();
+}
+
+function updateAllTotals() {
+  const df = getCurrentData();
+  const rows = df.length;
+  const subtotalValues = [];
+
+  document.querySelectorAll(".subtotal").forEach(cell => {
+    const start = Number(cell.dataset.subStart), end = Number(cell.dataset.subEnd), col = Number(cell.dataset.col);
+    let sum = 0;
+    for (let r = start; r <= end; r++) if (df[r][col] !== 0) sum++;
+    cell.textContent = sum || '';
+    if (!subtotalValues[col]) subtotalValues[col] = [];
+    subtotalValues[col].push(sum);
+  });
+
+  document.querySelectorAll(".grandtotal").forEach(cell => {
+    const col = Number(cell.dataset.col);
+    let sum = 0;
+    for (let r = 0; r < rows - 1; r++) if (df[r][col] !== 0) sum++;
+    cell.textContent = sum || '';
+  });
+
+  renderSummary(subtotalValues);
+}
+
+function renderSummary(subtotalValues) {
+  const df = getCurrentData();
+  const zones = zoneSizes[mode];
+  const motorRowIndex = df.length - 1;
+  const totalRows = df.length - 1; // exclude motor
+  const prefix = mode === "arrival" ? "ACar" : "DCar";
+  let text = `${prefix}\n\n`;
+  let prevSubEven = "", prevMotorEven = "";
+
+  // Process in 30-min pairs (every 2 columns)
+  for (let p = 0; p < cols; p += 2) {
+    const c0 = p;       // first 15-min col
+    const c1 = p + 1;   // second 15-min col
+
+    // A row counts only if BOTH columns in the pair are painted
+    // Grand total for the pair
+    let pairGrandTotal = 0;
+    for (let r = 0; r < totalRows; r++) {
+      if (df[r][c0] !== 0 && df[r][c1] !== 0) pairGrandTotal++;
+    }
+
+    // Motor counts only if both columns painted
+    const pairMotor = (df[motorRowIndex][c0] !== 0 && df[motorRowIndex][c1] !== 0) ? 1 : 0;
+
+    // Zone subtotals for the pair
+    let pairSubs = [];
+    let rowOffset = 0;
+    for (let z = 0; z < zones.length; z++) {
+      let zoneCount = 0;
+      for (let r = rowOffset; r < rowOffset + zones[z]; r++) {
+        if (df[r][c0] !== 0 && df[r][c1] !== 0) zoneCount++;
+      }
+      pairSubs.push(zoneCount);
+      rowOffset += zones[z];
+    }
+
+    const header = colHeaders[c0]; // use the :00 or :30 time label
+    const subs = pairSubs.join("/");
+
+    // Always print the pair entry, but skip if same as previous
+    if (p % 4 === 2) {
+      // This is the :30 pair — only print if different from :00 pair
+      if (subs !== prevSubEven || pairMotor != prevMotorEven)
+        text += `${header}:${String(pairGrandTotal).padStart(2,"0")}/${String(pairMotor).padStart(2,"0")}\n${subs}\n\n`;
+    } else {
+      // This is the :00 pair — always print
+      text += `${header}:${String(pairGrandTotal).padStart(2,"0")}/${String(pairMotor).padStart(2,"0")}\n${subs}\n\n`;
+      prevSubEven = subs;
+      prevMotorEven = pairMotor;
+    }
+  }
+  summaryText.textContent = text;
+}
+
+// ── Roster Data (Departure, Morning Shift) ──
+// Each officer: array of {s: startTime, e: endTime, t: type, r: 0-indexed row}
+// t: 'counter' = paint row r, 'motor' = paint motor row, 'skip' = break/GL/no roster
+const ROSTER_DATA = [
+  [{s:"1000",e:"1130",t:"motor",r:-1},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:27},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:17},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:35},{s:"2000",e:"2200",t:"counter",r:27}],
+  [{s:"1000",e:"1200",t:"counter",r:27},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:17},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"motor",r:-1},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:27},{s:"2000",e:"2200",t:"counter",r:17}],
+  [{s:"1000",e:"1230",t:"counter",r:17},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"motor",r:-1},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:27},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:17},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:35},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:27},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:17},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"motor",r:-1}],
+  [{s:"1000",e:"1130",t:"counter",r:35},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:6},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:26},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"motor",r:-1},{s:"2000",e:"2200",t:"counter",r:6}],
+  [{s:"1000",e:"1200",t:"counter",r:6},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:26},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:35},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:6},{s:"2000",e:"2200",t:"counter",r:26}],
+  [{s:"1000",e:"1230",t:"counter",r:26},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:35},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:6},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:26},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"motor",r:-1},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:6},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:26},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:35}],
+  [{s:"1000",e:"1130",t:"counter",r:16},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:33},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:7},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:16},{s:"2000",e:"2200",t:"counter",r:33}],
+  [{s:"1000",e:"1200",t:"counter",r:33},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:7},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:16},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:33},{s:"2000",e:"2200",t:"counter",r:7}],
+  [{s:"1000",e:"1230",t:"counter",r:7},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:16},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:33},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:7},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:16},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:33},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:7},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:16}],
+  [{s:"1000",e:"1130",t:"counter",r:25},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:14},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:34},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:25},{s:"2000",e:"2200",t:"counter",r:14}],
+  [{s:"1000",e:"1200",t:"counter",r:14},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:34},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:25},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:14},{s:"2000",e:"2200",t:"counter",r:34}],
+  [{s:"1000",e:"1230",t:"counter",r:34},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:25},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:14},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:34},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:25},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:14},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:34},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:25}],
+  [{s:"1000",e:"1130",t:"counter",r:4},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:24},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:15},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:4},{s:"2000",e:"2200",t:"counter",r:24}],
+  [{s:"1000",e:"1200",t:"counter",r:24},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:15},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:4},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:24},{s:"2000",e:"2200",t:"counter",r:15}],
+  [{s:"1000",e:"1230",t:"counter",r:15},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:4},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:24},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:15},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:4},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:24},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:15},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:4}],
+  [{s:"1000",e:"1130",t:"counter",r:5},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:32},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:23},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:5},{s:"2000",e:"2200",t:"counter",r:32}],
+  [{s:"1000",e:"1200",t:"counter",r:32},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:23},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:5},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:32},{s:"2000",e:"2200",t:"counter",r:23}],
+  [{s:"1000",e:"1230",t:"counter",r:23},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:5},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:32},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:23},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:5},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:32},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:23},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:5}],
+  [{s:"1000",e:"1130",t:"counter",r:13},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:31},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:3},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:13},{s:"2000",e:"2200",t:"counter",r:31}],
+  [{s:"1000",e:"1200",t:"counter",r:31},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:3},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:13},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:31},{s:"2000",e:"2200",t:"counter",r:3}],
+  [{s:"1000",e:"1230",t:"counter",r:3},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:13},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:31},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:3},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:13},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:31},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:3},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:13}],
+  [{s:"1000",e:"1130",t:"counter",r:22},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:12},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:2},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:22},{s:"2000",e:"2200",t:"counter",r:12}],
+  [{s:"1000",e:"1200",t:"counter",r:12},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:2},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:22},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:12},{s:"2000",e:"2200",t:"counter",r:2}],
+  [{s:"1000",e:"1230",t:"counter",r:2},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:22},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:12},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:2},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:22},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:12},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:2},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:22}],
+  [{s:"1000",e:"1130",t:"counter",r:30},{s:"1130",e:"1200",t:"skip",r:-1},{s:"1200",e:"1345",t:"counter",r:21},{s:"1345",e:"1430",t:"skip",r:-1},{s:"1430",e:"1645",t:"counter",r:11},{s:"1645",e:"1730",t:"skip",r:-1},{s:"1730",e:"2000",t:"counter",r:30},{s:"2000",e:"2200",t:"counter",r:21}],
+  [{s:"1000",e:"1200",t:"counter",r:21},{s:"1200",e:"1230",t:"skip",r:-1},{s:"1230",e:"1430",t:"counter",r:11},{s:"1430",e:"1515",t:"skip",r:-1},{s:"1515",e:"1730",t:"counter",r:30},{s:"1730",e:"1815",t:"skip",r:-1},{s:"1815",e:"2000",t:"counter",r:21},{s:"2000",e:"2200",t:"counter",r:11}],
+  [{s:"1000",e:"1230",t:"counter",r:11},{s:"1230",e:"1300",t:"skip",r:-1},{s:"1300",e:"1515",t:"counter",r:30},{s:"1515",e:"1600",t:"skip",r:-1},{s:"1600",e:"1815",t:"counter",r:21},{s:"1815",e:"1900",t:"skip",r:-1},{s:"1900",e:"2030",t:"counter",r:11},{s:"2030",e:"2200",t:"skip",r:-1}],
+  [{s:"1000",e:"1130",t:"skip",r:-1},{s:"1130",e:"1300",t:"counter",r:30},{s:"1300",e:"1330",t:"skip",r:-1},{s:"1330",e:"1600",t:"counter",r:21},{s:"1600",e:"1645",t:"skip",r:-1},{s:"1645",e:"1900",t:"counter",r:11},{s:"1900",e:"1945",t:"skip",r:-1},{s:"1945",e:"2200",t:"counter",r:30}],
+];
+
+// Convert "HHMM" time string to column index based on current colHeaders
+function timeToCol(timeStr) {
+  const idx = colHeaders.indexOf(timeStr);
+  if (idx !== -1) return idx;
+  // If exact match not found, find the column whose time is <= timeStr
+  const t = parseInt(timeStr);
+  for (let i = colHeaders.length - 1; i >= 0; i--) {
+    if (parseInt(colHeaders[i]) <= t) return i;
+  }
+  return 0;
+}
+
+// Convert end time to last column to paint (exclusive end → inclusive last)
+function endTimeToLastCol(timeStr) {
+  const exact = colHeaders.indexOf(timeStr);
+  if (exact !== -1) return exact - 1; // exact match means "up to but not including"
+  // Time is past last column header — paint up to the last column
+  const t = parseInt(timeStr);
+  const lastHeader = parseInt(colHeaders[colHeaders.length - 1]);
+  if (t > lastHeader) return colHeaders.length - 1;
+  // Otherwise find the column just before this time
+  for (let i = colHeaders.length - 1; i >= 0; i--) {
+    if (parseInt(colHeaders[i]) < t) return i;
+  }
+  return 0;
+}
+
+function populateRoster() {
+  const count = Math.min(36, Math.max(1, parseInt(document.getElementById("roster-count").value) || 4));
+  const resultDiv = document.getElementById("roster-result");
+
+  // Must be departure + morning
+  if (mode !== 'departure') {
+    // Auto-switch to departure
+    mode = 'departure';
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === 'departure'));
+    saveToLocalStorage();
+  }
+  if (shift !== 'morning') {
+    shift = 'morning';
+    colHeaders = generateColHeaders();
+    document.querySelectorAll(".shift-btn").forEach(b => b.classList.toggle("active", b.dataset.shift === 'morning'));
+    saveToLocalStorage();
+    populateTimeSelects();
+  }
+
+  pushUndo();
+
+  // Clear current departure data and start fresh
+  dataStore[mode] = initializeData(mode);
+  const df = getCurrentData();
+  const motorRowIndex = df.length - 1;
+
+  let counterPlacements = 0;
+  let motorPlacements = 0;
+
+  for (let oi = 0; oi < count; oi++) {
+    const schedule = ROSTER_DATA[oi];
+    for (const entry of schedule) {
+      if (entry.t === 'skip') continue;
+
+      const startCol = timeToCol(entry.s);
+      const lastCol = endTimeToLastCol(entry.e);
+
+      if (entry.t === 'counter') {
+        for (let c = startCol; c <= lastCol; c++) {
+          df[entry.r][c] = paintColor;
+          counterPlacements++;
+        }
+      } else if (entry.t === 'motor') {
+        for (let c = startCol; c <= lastCol; c++) {
+          df[motorRowIndex][c] = '#7c3aed';
+          motorPlacements++;
+        }
+      }
+    }
+  }
+
+  saveToLocalStorage();
+  renderTable();
+
+  // Show result summary
+  const groups = Math.ceil(count / 4);
+  let html = `<div style="color:var(--arrival);font-weight:600;">✓ Populated ${count} officer(s)</div>`;
+  html += `<div style="margin-top:4px;font-size:10px;color:var(--text-dim);">${counterPlacements} counter cells + ${motorPlacements} motorbike cells painted</div>`;
+
+  // Show group breakdown
+  const groupCounters = [
+    [28,18,36],[7,27,36],[17,34,8],[26,15,35],
+    [5,25,16],[6,33,24],[14,32,4],[23,13,3],[31,22,12]
+  ];
+  html += `<div style="margin-top:8px;">`;
+  for (let g = 0; g < groups; g++) {
+    const firstOff = g * 4 + 1;
+    const lastOff = Math.min((g + 1) * 4, count);
+    const counters = groupCounters[g] || [];
+    html += `<div class="suggestion-row"><span class="zone-badge">Grp ${g+1}</span> <span style="font-size:10px;color:var(--text-muted);">Officers ${firstOff}–${lastOff} → Rows ${counters.join(', ')}</span></div>`;
+  }
+  html += `</div>`;
+  resultDiv.innerHTML = html;
+  resultDiv.classList.add("visible");
+}
+
+// ── Event Listeners ──
+document.querySelectorAll(".mode-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); mode = btn.dataset.mode;
+    saveToLocalStorage(); populateTimeSelects(); renderTable();
+  });
+});
+
+document.querySelectorAll(".shift-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".shift-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active"); shift = btn.dataset.shift;
+    colHeaders = generateColHeaders();
+    saveToLocalStorage(); populateTimeSelects(); renderTable();
+  });
+});
+
+document.querySelectorAll(".color-swatch").forEach(swatch => {
+  swatch.addEventListener("click", () => {
+    document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+    swatch.classList.add("selected"); paintColor = swatch.dataset.color; saveToLocalStorage();
+  });
+});
+
+document.getElementById("clear-button").addEventListener("click", () => {
+  const name = mode.charAt(0).toUpperCase() + mode.slice(1);
+  if (confirm(`Clear all ${name} data? This cannot be undone.`)) {
+    pushUndo();
+    dataStore[mode] = initializeData(mode); saveToLocalStorage(); renderTable();
+  }
+});
+
+function handleCopy(btn) {
+  navigator.clipboard.writeText(summaryText.textContent).then(() => {
+    btn.classList.add("copied");
+    const span = btn.querySelector("span"); const prev = span.textContent; span.textContent = "Copied!";
+    setTimeout(() => { btn.classList.remove("copied"); span.textContent = prev; }, 2000);
+  }).catch(err => alert("Copy failed: " + err));
+}
+
+document.getElementById("copy-button").addEventListener("click", function() { handleCopy(this); });
+document.getElementById("copy-button-2").addEventListener("click", function() { handleCopy(this); });
+
+// Auto-assign panel toggle
+document.getElementById("auto-panel-header").addEventListener("click", () => {
+  document.getElementById("auto-panel").classList.toggle("collapsed");
+});
+
+// Suggest button
+document.getElementById("auto-suggest-btn").addEventListener("click", () => {
+  const count = parseInt(document.getElementById("auto-count").value) || 1;
+  const fromCol = parseInt(document.getElementById("auto-from").value);
+  const toCol = parseInt(document.getElementById("auto-to").value);
+
+  if (fromCol > toCol) {
+    alert("'From' time must be before or equal to 'To' time.");
+    return;
+  }
+
+  const suggestion = computeSuggestions(count, fromCol, toCol);
+  showSuggestions(suggestion);
+});
+
+// Apply button
+document.getElementById("auto-apply-btn").addEventListener("click", applySuggestions);
+
+// Roster panel toggle
+document.getElementById("roster-panel-header").addEventListener("click", () => {
+  document.getElementById("roster-panel").classList.toggle("collapsed");
+});
+
+// Roster populate button
+document.getElementById("roster-populate-btn").addEventListener("click", populateRoster);
+
+// ── Undo System ──
+const undoStack = []; // stores { mode, snapshot } objects
+const MAX_UNDO = 50;
+
+function pushUndo() {
+  const df = getCurrentData();
+  const snapshot = df.map(row => [...row]);
+  undoStack.push({ mode, snapshot });
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  updateUndoButton();
+}
+
+function performUndo() {
+  if (undoStack.length === 0) return;
+  const entry = undoStack.pop();
+  dataStore[entry.mode] = entry.snapshot;
+  // If undo target is a different mode, switch to it
+  if (entry.mode !== mode) {
+    mode = entry.mode;
+    document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+  }
+  saveToLocalStorage();
+  renderTable();
+  updateUndoButton();
+}
+
+function updateUndoButton() {
+  const btn = document.getElementById("undo-button");
+  btn.disabled = undoStack.length === 0;
+}
+
+// ── Zoom System ──
+let zoomLevel = 100;
+const ZOOM_STEP = 10;
+const ZOOM_MIN = 30;
+const ZOOM_MAX = 150;
+
+function applyZoom() {
+  const container = document.getElementById("table-container");
+  const wrapper = document.getElementById("table-wrapper");
+  const scale = zoomLevel / 100;
+  container.style.transform = `scale(${scale})`;
+  // Adjust wrapper height to match scaled content
+  // Use requestAnimationFrame to wait for transform to apply
+  requestAnimationFrame(() => {
+    const rect = container.getBoundingClientRect();
+    wrapper.style.height = rect.height + 'px';
+  });
+  document.getElementById("zoom-level").textContent = zoomLevel + '%';
+}
+
+function zoomIn() {
+  if (zoomLevel < ZOOM_MAX) { zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP); applyZoom(); }
+}
+
+function zoomOut() {
+  if (zoomLevel > ZOOM_MIN) { zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP); applyZoom(); }
+}
+
+function zoomFit() {
+  const wrapper = document.getElementById("table-wrapper");
+  const container = document.getElementById("table-container");
+  // Temporarily reset to 100% to measure natural width
+  container.style.transform = 'scale(1)';
+  const naturalWidth = container.scrollWidth;
+  const availableWidth = wrapper.clientWidth;
+  const fitScale = Math.floor((availableWidth / naturalWidth) * 100);
+  zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, fitScale));
+  applyZoom();
+}
+
+document.getElementById("zoom-in").addEventListener("click", zoomIn);
+document.getElementById("zoom-out").addEventListener("click", zoomOut);
+document.getElementById("zoom-fit").addEventListener("click", zoomFit);
+document.getElementById("undo-button").addEventListener("click", performUndo);
+
+// Keyboard shortcut: Ctrl+Z / Cmd+Z for undo
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    performUndo();
+  }
+});
+
+// Init
+loadFromLocalStorage();
+populateTimeSelects();
+renderTable();
+</script>
+</body>
+</html>
